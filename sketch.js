@@ -13,7 +13,7 @@ let guesses = [];         // Array of past guesses for this player
 let maxGuesses = 6;       // Maximum attempts allowed
 
 function setup() {
-  createCanvas(400, 600);  // Smaller canvas, just for Wordle grid (no player panel for now)
+  createCanvas(400, 600);  // Smaller canvas, just for Wordle grid
   textAlign(CENTER, CENTER);
   textSize(32);            // Default text size for letters
 
@@ -32,6 +32,13 @@ function setup() {
   finishButton.position(165, 220);
   finishButton.hide();
   finishButton.mousePressed(finishGame);
+
+  // Try to focus the canvas, but handle potential null (optional for now)
+  try {
+    document.getElementById('defaultCanvas').focus();
+  } catch (e) {
+    console.log("Canvas focus failed, but game should still work:", e);
+  }
 }
 
 function draw() {
@@ -152,7 +159,12 @@ function startGame() {
     guesses = []; // Reset guesses
     currentGuess = ""; // Reset current guess
     startTime = millis(); // Start timing
-    document.getElementById('defaultCanvas').focus(); // Focus the canvas for typing
+    // Try to focus the canvas, but handle potential null
+    try {
+      document.getElementById('defaultCanvas').focus();
+    } catch (e) {
+      console.log("Canvas focus failed, but game should still work:", e);
+    }
   }
 }
 
