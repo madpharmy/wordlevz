@@ -1,18 +1,18 @@
-// Global variables for game state
+// Global variables
 let playerName = '';
 let gameStarted = false;
-let startTime;
+let startTime = 0;
 let totalTime = 0;
-let inputField;     // For entering player name
+let inputField;
 let startButton;
 let finishButton;
 
-// Word-guessing game variables
-let targetWord = "FLAME";  // The word to guess (5 letters, uppercase)
-let guesses = [];          // Array of previous guesses
-let currentGuess = "";     // Current letters being typed
-let currentRow = 0;        // Current guess row (0 to 5)
-let correctGuess = false;  // Flag for correct guess
+// Word-guessing variables
+let targetWord = "FLAME"; // Example 5-letter word
+let currentGuess = "";
+let guesses = [];
+let currentRow = 0;
+let maxRows = 6; // Max guess attempts
 
 function setup() {
   createCanvas(400, 600);
@@ -37,101 +37,85 @@ function setup() {
 }
 
 function draw() {
-  background(220);  // Light gray background
+  background(220); // Light gray background
   if (!gameStarted) {
     text("Enter your name and click 'Start Game'", width / 2, height / 2 - 50);
   } else {
-    drawGrid();  // Draw the letter boxes
-    if (correctGuess) {
+    drawGrid(); // Draw letter boxes
+    if (currentRow >= maxRows) {
+      text("Out of guesses! Word was: " + targetWord, width / 2, height - 50);
+    } else if (guesses[currentRow - 1] === targetWord) {
       text("Correct! Click 'Finish Game'", width / 2, height - 50);
-    } else if (currentRow >= 6) {
-      text("Out of guesses. The word was " + targetWord, width / 2, height - 50);
     } else {
-      text("Type your guess", width / 2, height - 50);
+      text("Type a 5-letter word", width / 2, height - 50);
     }
   }
 }
 
-// Draw the grid of letter boxes with feedback
+// Draw the letter box grid
 function drawGrid() {
-  let boxSize = 50;  // Size of each letter box
-  let spacing = 10;  // Space between boxes
-  let startX = (width - (5 * boxSize + 4 * spacing)) / 2;  // Center horizontally
-  let startY = 100;  // Start 100 pixels from the top
+  let boxSize = 50;
+  let spacing = 10;
+  let startX = (width - (5 * boxSize + 4 * spacing)) / 2;
+  let startY = 100;
 
-  for (let row = 0; row < 6; row++) {
+  for (let row = 0; row < maxRows; row++) {
     for (let col = 0; col < 5; col++) {
       let x = startX + col * (boxSize + spacing);
       let y = startY + row * (boxSize + spacing);
       if (row < currentRow) {
-        // Draw previous guesses with feedback
         let guess = guesses[row];
         let feedback = getFeedback(guess);
-        let color = feedback[col];
-        if (color === "green") {
-          fill(0, 255, 0);  // Correct letter, correct position
-        } else if (color === "yellow") {
-          fill(255, 255, 0);  // Correct letter, wrong position
-        } else {
-          fill(120);  // Incorrect letter
-        }
+        fill(feedback[col]);
         rect(x, y, boxSize, boxSize);
-        fill(0);  // Black text
+        fill(0);
         text(guess[col], x + boxSize / 2, y + boxSize / 2);
       } else if (row === currentRow && col < currentGuess.length) {
-        // Draw current guess
-        fill(255);  // White background
+        fill(255); // White for current guess
         rect(x, y, boxSize, boxSize);
         fill(0);
         text(currentGuess[col], x + boxSize / 2, y + boxSize / 2);
       } else {
-        // Draw empty boxes
-        fill(200);  // Light gray
+        fill(200); // Gray for empty boxes
         rect(x, y, boxSize, boxSize);
       }
     }
   }
 }
 
-// Provide feedback for a guess (green, yellow, gray)
+// Provide feedback on guesses
 function getFeedback(guess) {
   let feedback = [];
   for (let i = 0; i < 5; i++) {
     if (guess[i] === targetWord[i]) {
-      feedback.push("green");
+      feedback.push(color(0, 255, 0)); // Green for correct position
     } else if (targetWord.includes(guess[i])) {
-      feedback.push("yellow");
+      feedback.push(color(255, 255, 0)); // Yellow for wrong position
     } else {
-      feedback.push("gray");
+      feedback.push(color(120)); // Gray for not in word
     }
   }
   return feedback;
 }
 
-// Handle keyboard input for guesses
+// Handle keyboard input
 function keyPressed() {
-  if (gameStarted && !correctGuess && currentRow < 6) {
-    if ((keyCode >= 65 && keyCode <= 90) && currentGuess.length < 5) {  // A-Z
+  if (gameStarted && currentRow < maxRows) {
+    if (keyCode >= 65 && keyCode <= 90 && currentGuess.length < 5) { // A-Z
       currentGuess += key.toUpperCase();
     } else if (keyCode === BACKSPACE && currentGuess.length > 0) {
       currentGuess = currentGuess.slice(0, -1);
     } else if (keyCode === ENTER && currentGuess.length === 5) {
       guesses.push(currentGuess);
-      if (currentGuess === targetWord) {
-        correctGuess = true;
-        finishButton.show();  // Show button when correct word is entered
-      } else {
-        currentRow++;
-        if (currentRow >= 6) {
-          finishButton.show();  // Show button if out of guesses
-        }
+      if (currentGuess === targetWord || currentRow + 1 >= maxRows) {
+        finishButton.show(); // Show when correct or out of guesses
       }
+      currentRow++;
       currentGuess = "";
     }
   }
 }
 
-// Start the game
 function startGame() {
   let name = inputField.value().trim();
   if (name) {
@@ -139,25 +123,20 @@ function startGame() {
     inputField.value('');
     inputField.hide();
     startButton.hide();
-    finishButton.hide();  // Hide finish button at start
+    finishButton.hide(); // Ensure hidden at start
     gameStarted = true;
     guesses = [];
     currentGuess = "";
     currentRow = 0;
-    correctGuess = false;
     startTime = millis();
   }
 }
 
-// Finish the game and show results
 function finishGame() {
-  if (gameStarted) {
-    let endTime = millis();
-    totalTime = (endTime - startTime) / 1000;  // Time in seconds
-    gameStarted = false;
-    finishButton.hide();
-    startButton.show();
-    inputField.show();
-    alert(`Finished in ${totalTime.toFixed(2)} seconds`);
-  }
+  totalTime = (millis() - startTime) / 1000; // Time in seconds
+  gameStarted = false;
+  finishButton.hide();
+  startButton.show();
+  inputField.show();
+  alert(`Nice job, ${playerName}! Time: ${totalTime.toFixed(2)} seconds`);
 }
