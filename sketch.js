@@ -1,71 +1,71 @@
-let playerName, startTime, totalTime = 0, gameStarted = false;
+let startButton, finishButton, inputField;
+let playerName = '';
+let startTime = 0;
+let totalTime = 0;
+let gameStarted = false;
 
 function setup() {
-  // Existing setup code (e.g., createCanvas, buttons, inputField)
-  startButton.mousePressed(startGame);
-  finishButton.mousePressed(finishGame);
-}
+    createCanvas(400, 400);
+    startButton = createButton('Start Game');
+    startButton.position(165, 220);
+    startButton.mousePressed(startGame);
+    finishButton = createButton('Finish Game');
+    finishButton.position(165, 220);
+    finishButton.hide();
+    finishButton.mousePressed(finishGame);
+    inputField = createInput('');
 
-function startGame() {
-  let name = inputField.value().trim();
-  if (name) {
-    fetch('http://localhost:3000/start-game', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerName: name, startTime: Date.now() })
-    })
-    .then(response => response.json())
-    .then(data => {
-      playerName = data.playerName;
-      startTime = data.startTime;
-      gameStarted = true;
-      startButton.hide();
-      finishButton.show();
-    })
-    .catch(error => console.error('Error:', error));
-  }
-}
+    // Load saved data
+    playerName = localStorage.getItem('playerName') || '';
+    startTime = parseFloat(localStorage.getItem('startTime')) || 0;
+    gameStarted = localStorage.getItem('gameStarted') === 'true';
 
-function finishGame() {
-  if (gameStarted) {
-    let endTime = Date.now();
-    fetch('http://localhost:3000/finish-game', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerName, endTime })
-    })
-    .then(response => response.json())
-    .then(data => {
-      totalTime = data.totalTime;
-      gameStarted = false;
-      finishButton.hide();
-      startButton.show();
-      inputField.show();
-      fetchLeaderboard(); // Optional: Update leaderboard
-    })
-    .catch(error => console.error('Error:', error));
-  }
-}
-
-function fetchLeaderboard() {
-  fetch('http://localhost:3000/leaderboard')
-    .then(response => response.json())
-    .then(data => {
-      console.log('Leaderboard:', data); // Display or render leaderboard
-      // Add code to show leaderboard in your UI
-    });
+    if (gameStarted) {
+        startButton.hide();
+        finishButton.show();
+    } else {
+        startButton.show();
+        finishButton.hide();
+    }
 }
 
 function draw() {
-  background(220);
-  textAlign(CENTER);
-  fill(0);
-  if (!gameStarted && totalTime === 0) {
-    text("Click 'Start Game'", width / 2, height / 2 - 50);
-  } else if (gameStarted) {
-    text(`Playing as ${playerName}`, width / 2, height / 2 - 50);
-  } else if (totalTime > 0) {
-    text(`Finished in ${totalTime} seconds`, width / 2, height / 2 - 30);
-    text("Enter a new name to play again", width / 2, height / 2 + 30);
-  }
+    background(220);
+    if (gameStarted) {
+        text(`Playing as ${playerName}. Click 'Finish Game' when done`, 50, 50);
+    } else if (totalTime > 0) {
+        text(`Finished! ${playerName}'s time: ${totalTime.toFixed(2)} seconds`, 50, 50);
+    } else {
+        text('Enter your name and click "Start Game"', 50, 50);
+    }
+}
+
+function startGame() {
+    let name = inputField.value().trim();
+    if (name) {
+        playerName = name;
+        startTime = millis();
+        gameStarted = true;
+        localStorage.setItem('playerName', playerName);
+        localStorage.setItem('startTime', startTime);
+        localStorage.setItem('gameStarted', 'true');
+        startButton.hide();
+        finishButton.show();
+        totalTime = 0;
+    }
+}
+
+function finishGame() {
+    if (gameStarted) {
+        let endTime = millis();
+        totalTime = (endTime - startTime) / 1000;
+        let gameData = JSON.parse(localStorage.getItem('gameData')) || [];
+        gameData.push({ name: playerName, time: totalTime });
+        localStorage.setItem('gameData', JSON.stringify(gameData));
+        gameStarted = false;
+        localStorage.setItem('gameStarted', 'false');
+        finishButton.hide();
+        startButton.show();
+        inputField.show();
+    }
 }
