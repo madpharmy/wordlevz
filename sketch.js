@@ -7,19 +7,13 @@ let inputField;
 let startButton;
 let finishButton;
 
-let targetWord = "FLAME"; // Define targetWord here as a global variable
+let targetWord = "FLAME"; // The word to guess (5 letters, uppercase)
 let currentGuess = "";    // Current letters being typed by this player
 let guesses = [];         // Array of past guesses for this player
 let maxGuesses = 6;       // Maximum attempts allowed
 
-// Simulated other players (shared via localStorage, with fallback)
-let otherPlayers = JSON.parse(localStorage.getItem('wordlePlayers')) || [
-  { name: "Alice", row: 1, colors: Array(5).fill('gray') }, // Initial state
-  { name: "Bob", row: 1, colors: Array(5).fill('gray') }
-];
-
 function setup() {
-  createCanvas(600, 600);  // Larger canvas for Wordle grid and player panel
+  createCanvas(400, 600);  // Smaller canvas, just for Wordle grid (no player panel for now)
   textAlign(CENTER, CENTER);
   textSize(32);            // Default text size for letters
 
@@ -38,13 +32,6 @@ function setup() {
   finishButton.position(165, 220);
   finishButton.hide();
   finishButton.mousePressed(finishGame);
-
-  // Load other players from localStorage and listen for changes
-  window.addEventListener('storage', updatePlayersFromStorage);
-  updatePlayersFromStorage(); // Initial load
-
-  // Focus the canvas initially (optional, but helps with key input)
-  document.getElementById('defaultCanvas').focus();
 }
 
 function draw() {
@@ -56,7 +43,6 @@ function draw() {
     text('Enter your name and click "Start Game"', width / 2, height / 2 - 50);
   } else if (gameStarted) {
     drawWordleGrid();
-    drawPlayersPanel();
     fill(0);
     textSize(20); // Smaller text for playing state
     text(`Playing as ${playerName}`, width / 2, 50);
@@ -105,37 +91,6 @@ function drawWordleGrid() {
   }
 }
 
-function drawPlayersPanel() {
-  fill(240); // Light gray box
-  rect(400, 0, 200, 600); // Right panel for players
-  fill(0); // Black text
-  textSize(16); // Smaller text for player list
-
-  for (let i = 0; i < otherPlayers.length; i++) {
-    let player = otherPlayers[i];
-    if (player.name === playerName) continue; // Skip this player
-    text(player.name, 450, 30 + i * 80); // Player name at top of box
-    text(`Row: ${player.row}`, 450, 50 + i * 80); // Show their current row
-
-    // Draw colored tiles for their guesses (no letters)
-    for (let col = 0; col < 5; col++) {
-      let x = 450 + col * 30; // Position tiles horizontally
-      let y = 70 + i * 80;    // Position tiles vertically for each player
-      let color;
-      if (player.colors[col] === 'green') {
-        color = [0, 255, 0]; // Green
-      } else if (player.colors[col] === 'yellow') {
-        color = [255, 255, 0]; // Yellow
-      } else {
-        color = [120, 120, 120]; // Gray
-      }
-      fill(color[0], color[1], color[2]);
-      rect(x, y, 25, 25); // Smaller tiles for colors only
-    }
-  }
-  textSize(32); // Restore for Wordle letters in grid
-}
-
 function keyPressed() {
   console.log("Key pressed:", key, "KeyCode:", keyCode); // Debug log
   if (gameStarted && !gameOver()) {
@@ -150,7 +105,6 @@ function keyPressed() {
     // Handle Enter to submit a guess
     else if (keyCode === ENTER && currentGuess.length === 5) {
       guesses.push(currentGuess); // Submit guess
-      updateOtherPlayers(); // Update other players' progress
       if (currentGuess === targetWord || guesses.length === maxGuesses) {
         finishGame(); // End game if won or out of guesses
       }
@@ -186,35 +140,6 @@ function gameOver() {
   return guesses.length === maxGuesses || guesses.includes(targetWord);
 }
 
-function updateOtherPlayers() {
-  // Update this player's progress in localStorage, handling potential storage errors
-  try {
-    let thisPlayer = { name: playerName, row: guesses.length + 1, colors: checkGuess(guesses[guesses.length - 1] || Array(5).fill('')) };
-    otherPlayers = otherPlayers.filter(p => p.name !== playerName); // Remove old data for this player
-    otherPlayers.push(thisPlayer); // Add updated data
-    localStorage.setItem('wordlePlayers', JSON.stringify(otherPlayers)); // Save to localStorage
-  } catch (e) {
-    console.log("Storage access blocked, using local fallback:", e);
-    // Fallback: Use an in-memory array if storage is blocked
-    otherPlayers = otherPlayers.filter(p => p.name !== playerName);
-    otherPlayers.push(thisPlayer);
-  }
-}
-
-function updatePlayersFromStorage() {
-  // Load other players from localStorage, with a fallback for errors
-  try {
-    let storedPlayers = JSON.parse(localStorage.getItem('wordlePlayers')) || [];
-    otherPlayers = storedPlayers.filter(p => p.name !== playerName); // Exclude this player
-  } catch (e) {
-    console.log("Cannot access localStorage, using default players:", e);
-    otherPlayers = [
-      { name: "Alice", row: 1, colors: Array(5).fill('gray') },
-      { name: "Bob", row: 1, colors: Array(5).fill('gray') }
-    ];
-  }
-}
-
 function startGame() {
   let name = inputField.value().trim();
   if (name !== '') {
@@ -227,7 +152,6 @@ function startGame() {
     guesses = []; // Reset guesses
     currentGuess = ""; // Reset current guess
     startTime = millis(); // Start timing
-    updateOtherPlayers(); // Add this player to the list
     document.getElementById('defaultCanvas').focus(); // Focus the canvas for typing
   }
 }
@@ -241,6 +165,5 @@ function finishGame() {
     startButton.show();
     inputField.show();
     inputField.elt.focus(); // Ensure input field is ready for typing
-    updateOtherPlayers(); // Final update for this player
   }
 }
