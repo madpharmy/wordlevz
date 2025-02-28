@@ -12,8 +12,12 @@ let currentGuess = "";    // Current letters being typed by this player
 let guesses = [];         // Array of past guesses for this player
 let maxGuesses = 6;       // Maximum attempts allowed
 
+// Simulated other players (shared via BroadcastChannel)
+let otherPlayers = [];    // List of other players from BroadcastChannel
+const broadcastChannel = new BroadcastChannel('wordleChannel'); // Channel for communication
+
 function setup() {
-  createCanvas(400, 600);  // Smaller canvas, just for Wordle grid
+  createCanvas(600, 600);  // Larger canvas for Wordle grid and player panel
   textAlign(CENTER, CENTER);
   textSize(32);            // Default text size for letters
 
@@ -33,7 +37,14 @@ function setup() {
   finishButton.hide();
   finishButton.mousePressed(finishGame);
 
-  // Try to focus the canvas, but handle potential null (optional for now)
+  // Listen for messages from other tabs/windows via BroadcastChannel
+  broadcastChannel.onmessage = (event) => {
+    if (event.data.type === 'playerUpdate') {
+      otherPlayers = event.data.players.filter(p => p.name !== playerName); // Exclude this player
+    }
+  };
+
+  // Try to focus the canvas, but handle potential null
   try {
     document.getElementById('defaultCanvas').focus();
   } catch (e) {
@@ -50,6 +61,7 @@ function draw() {
     text('Enter your name and click "Start Game"', width / 2, height / 2 - 50);
   } else if (gameStarted) {
     drawWordleGrid();
+    drawPlayersPanel();
     fill(0);
     textSize(20); // Smaller text for playing state
     text(`Playing as ${playerName}`, width / 2, 50);
@@ -98,6 +110,36 @@ function drawWordleGrid() {
   }
 }
 
+function drawPlayersPanel() {
+  fill(240); // Light gray box
+  rect(400, 0, 200, 600); // Right panel for players
+  fill(0); // Black text
+  textSize(16); // Smaller text for player list
+
+  for (let i = 0; i < otherPlayers.length; i++) {
+    let player = otherPlayers[i];
+    text(player.name, 450, 30 + i * 80); // Player name at top of box
+    text(`Row: ${player.row}`, 450, 50 + i * 80); // Show their current row
+
+    // Draw colored tiles for their guesses (no letters)
+    for (let col = 0; col < 5; col++) {
+      let x = 450 + col * 30; // Position tiles horizontally
+      let y = 70 + i * 80;    // Position tiles vertically for each player
+      let color;
+      if (player.colors[col] === 'green') {
+        color = [0, 255, 0]; // Green
+      } else if (player.colors[col] === 'yellow') {
+        color = [255, 255, 0]; // Yellow
+      } else {
+        color = [120, 120, 120]; // Gray
+      }
+      fill(color[0], color[1], color[2]);
+      rect(x, y, 25, 25); // Smaller tiles for colors only
+    }
+  }
+  textSize(32); // Restore for Wordle letters in grid
+}
+
 function keyPressed() {
   console.log("Key pressed:", key, "KeyCode:", keyCode); // Debug log
   if (gameStarted && !gameOver()) {
@@ -112,6 +154,7 @@ function keyPressed() {
     // Handle Enter to submit a guess
     else if (keyCode === ENTER && currentGuess.length === 5) {
       guesses.push(currentGuess); // Submit guess
+      broadcastPlayerUpdate(); // Broadcast this player's update
       if (currentGuess === targetWord || guesses.length === maxGuesses) {
         finishGame(); // End game if won or out of guesses
       }
@@ -147,6 +190,12 @@ function gameOver() {
   return guesses.length === maxGuesses || guesses.includes(targetWord);
 }
 
+function broadcastPlayerUpdate() {
+  let thisPlayer = { name: playerName, row: guesses.length + 1, colors: checkGuess(guesses[guesses.length - 1] || Array(5).fill('')) };
+  let players = [thisPlayer, ...otherPlayers.filter(p => p.name !== playerName)]; // Include this player and others
+  broadcastChannel.postMessage({ type: 'playerUpdate', players: players });
+}
+
 function startGame() {
   let name = inputField.value().trim();
   if (name !== '') {
@@ -159,7 +208,7 @@ function startGame() {
     guesses = []; // Reset guesses
     currentGuess = ""; // Reset current guess
     startTime = millis(); // Start timing
-    // Try to focus the canvas, but handle potential null
+    broadcastPlayerUpdate(); // Add this player to the channel
     try {
       document.getElementById('defaultCanvas').focus();
     } catch (e) {
@@ -177,5 +226,6 @@ function finishGame() {
     startButton.show();
     inputField.show();
     inputField.elt.focus(); // Ensure input field is ready for typing
+    broadcastPlayerUpdate(); // Final update for this player
   }
 }
