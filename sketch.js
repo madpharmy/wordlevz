@@ -1,35 +1,29 @@
-// Global variables
 let playerName = '';
 let gameStarted = false;
-let startTime = 0;
+let startTime;
 let totalTime = 0;
 let inputField;
 let startButton;
 let finishButton;
-
-// Word-guessing variables
-let targetWord = "FLAME"; // Example 5-letter word
-let currentGuess = "";
-let guesses = [];
-let currentRow = 0;
-let maxRows = 6; // Max guess attempts
+let displayMessage = '';
+let showingMessage = false;
 
 function setup() {
-  createCanvas(400, 600);
+  createCanvas(400, 400);
   textAlign(CENTER, CENTER);
   textSize(20);
 
-  // Input field for player name
+  // Create input field for player name
   inputField = createInput('');
   inputField.position(150, 180);
   inputField.size(100, 20);
 
-  // Start button
+  // Create start button
   startButton = createButton('Start Game');
   startButton.position(165, 220);
   startButton.mousePressed(startGame);
 
-  // Finish button (hidden initially)
+  // Create finish button, hidden initially
   finishButton = createButton('Finish Game');
   finishButton.position(165, 220);
   finishButton.hide();
@@ -37,106 +31,89 @@ function setup() {
 }
 
 function draw() {
-  background(220); // Light gray background
+  background(220);
   if (!gameStarted) {
-    text("Enter your name and click 'Start Game'", width / 2, height / 2 - 50);
+    if (showingMessage) {
+      // Show the completion time or cooldown message
+      text(displayMessage, width / 2, height / 2);
+    } else {
+      // Initial prompt
+      text("Enter your name and click 'Start Game'", width / 2, height / 2 - 50);
+    }
   } else {
-    drawGrid(); // Draw letter boxes
-    if (currentRow >= maxRows) {
-      text("Out of guesses! Word was: " + targetWord, width / 2, height - 50);
-    } else if (guesses[currentRow - 1] === targetWord) {
-      text("Correct! Click 'Finish Game'", width / 2, height - 50);
-    } else {
-      text("Type a 5-letter word", width / 2, height - 50);
-    }
+    // Game in progress
+    text(`Playing as ${playerName}`, width / 2, height / 2 - 50);
+    text("Click 'Finish Game' when done", width / 2, height / 2 - 30);
   }
 }
 
-// Draw the letter box grid
-function drawGrid() {
-  let boxSize = 50;
-  let spacing = 10;
-  let startX = (width - (5 * boxSize + 4 * spacing)) / 2;
-  let startY = 100;
-
-  for (let row = 0; row < maxRows; row++) {
-    for (let col = 0; col < 5; col++) {
-      let x = startX + col * (boxSize + spacing);
-      let y = startY + row * (boxSize + spacing);
-      if (row < currentRow) {
-        let guess = guesses[row];
-        let feedback = getFeedback(guess);
-        fill(feedback[col]);
-        rect(x, y, boxSize, boxSize);
-        fill(0);
-        text(guess[col], x + boxSize / 2, y + boxSize / 2);
-      } else if (row === currentRow && col < currentGuess.length) {
-        fill(255); // White for current guess
-        rect(x, y, boxSize, boxSize);
-        fill(0);
-        text(currentGuess[col], x + boxSize / 2, y + boxSize / 2);
-      } else {
-        fill(200); // Gray for empty boxes
-        rect(x, y, boxSize, boxSize);
-      }
-    }
+// Helper function to get player data from localStorage
+function getPlayerData() {
+  try {
+    return JSON.parse(localStorage.getItem('playerData')) || {};
+  } catch (e) {
+    console.log("Cannot access localStorage:", e);
+    return {}; // Fallback to empty object if storage is unavailable
   }
 }
 
-// Provide feedback on guesses
-function getFeedback(guess) {
-  let feedback = [];
-  for (let i = 0; i < 5; i++) {
-    if (guess[i] === targetWord[i]) {
-      feedback.push(color(0, 255, 0)); // Green for correct position
-    } else if (targetWord.includes(guess[i])) {
-      feedback.push(color(255, 255, 0)); // Yellow for wrong position
-    } else {
-      feedback.push(color(120)); // Gray for not in word
-    }
-  }
-  return feedback;
-}
-
-// Handle keyboard input
-function keyPressed() {
-  if (gameStarted && currentRow < maxRows) {
-    if (keyCode >= 65 && keyCode <= 90 && currentGuess.length < 5) { // A-Z
-      currentGuess += key.toUpperCase();
-    } else if (keyCode === BACKSPACE && currentGuess.length > 0) {
-      currentGuess = currentGuess.slice(0, -1);
-    } else if (keyCode === ENTER && currentGuess.length === 5) {
-      guesses.push(currentGuess);
-      if (currentGuess === targetWord || currentRow + 1 >= maxRows) {
-        finishButton.show(); // Show when correct or out of guesses
-      }
-      currentRow++;
-      currentGuess = "";
-    }
+// Helper function to save player data to localStorage
+function setPlayerData(data) {
+  try {
+    localStorage.setItem('playerData', JSON.stringify(data));
+  } catch (e) {
+    console.log("Cannot write to localStorage:", e);
   }
 }
 
 function startGame() {
   let name = inputField.value().trim();
   if (name) {
+    let playerData = getPlayerData();
+    
+    // Check if this player has played recently
+    if (playerData[name]) {
+      let lastPlayed = playerData[name].lastPlayed;
+      let now = Date.now();
+      let oneHour = 3600000; // 1 hour in milliseconds
+      if (now - lastPlayed < oneHour) {
+        // Player is within cooldown period
+        let timeRemaining = (oneHour - (now - lastPlayed)) / 60000; // Convert to minutes
+        displayMessage = `You can play again in ${timeRemaining.toFixed(0)} minutes. Your previous time: ${playerData[name].completionTime.toFixed(2)} seconds`;
+        showingMessage = true;
+        return; // Prevent the game from starting
+      }
+    }
+
+    // Start the game if no cooldown restriction applies
     playerName = name;
-    inputField.value('');
+    gameStarted = true;
+    showingMessage = false;
+    totalTime = 0; // Reset totalTime
+    startTime = millis();
     inputField.hide();
     startButton.hide();
-    finishButton.hide(); // Ensure hidden at start
-    gameStarted = true;
-    guesses = [];
-    currentGuess = "";
-    currentRow = 0;
-    startTime = millis();
+    finishButton.show();
   }
 }
 
 function finishGame() {
-  totalTime = (millis() - startTime) / 1000; // Time in seconds
+  let endTime = millis();
+  totalTime = (endTime - startTime) / 1000; // Calculate time in seconds
+  
+  // Update player data with completion time and timestamp
+  let playerData = getPlayerData();
+  playerData[playerName] = {
+    lastPlayed: Date.now(),
+    completionTime: totalTime
+  };
+  setPlayerData(playerData);
+
+  // Reset game state and display only the completion time
   gameStarted = false;
   finishButton.hide();
   startButton.show();
   inputField.show();
-  alert(`Nice job, ${playerName}! Time: ${totalTime.toFixed(2)} seconds`);
+  displayMessage = `${totalTime.toFixed(2)} seconds`; // Show only the time
+  showingMessage = true;
 }
