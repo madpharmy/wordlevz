@@ -1,50 +1,72 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const app = express();
-app.use(express.json()); // Parse JSON requests
+let startButton, finishButton, inputField;
+let playerName = '';
+let gameStarted = false;
+let currentGuess = '';
+const wordLength = 5;
+const targetWord = 'FLAME';  // Replace with your target word
 
-// Connect to MongoDB (replace with your URI)
-mongoose.connect('mongodb://localhost:27017/gameDB', { 
-  useNewUrlParser: true, 
-  useUnifiedTopology: true 
-});
+function setup() {
+  createCanvas(400, 400);
+  inputField = createInput('');
+  inputField.position(165, 180);
+  startButton = createButton('Start Game');
+  startButton.position(165, 220);
+  startButton.mousePressed(startGame);
+  finishButton = createButton('Finish Game');
+  finishButton.position(165, 220);
+  finishButton.hide();
+  finishButton.mousePressed(finishGame);
+}
 
-// Define a schema for game data
-const gameSchema = new mongoose.Schema({
-  playerName: String,
-  startTime: Number,
-  endTime: Number,
-  totalTime: Number
-});
-const Game = mongoose.model('Game', gameSchema);
-
-// API to start a game
-app.post('/start-game', async (req, res) => {
-  const { playerName, startTime } = req.body;
-  const game = new Game({ playerName, startTime });
-  await game.save();
-  res.status(201).send(game);
-});
-
-// API to finish a game
-app.post('/finish-game', async (req, res) => {
-  const { playerName, endTime } = req.body;
-  const game = await Game.findOne({ playerName, endTime: null });
-  if (game) {
-    game.endTime = endTime;
-    game.totalTime = (endTime - game.startTime) / 1000; // Convert to seconds
-    await game.save();
-    res.status(200).send(game);
+function draw() {
+  background(220);
+  if (gameStarted) {
+    text(`Playing as ${playerName}`, 50, 50);
+    text(`Current guess: ${currentGuess}`, 50, 100);
+    text("Click 'Finish Game' when done", 50, 150);
   } else {
-    res.status(404).send('Game not found');
+    text("Enter your name and click 'Start Game'", 50, 50);
   }
-});
+}
 
-// API to get all game records (e.g., for a leaderboard)
-app.get('/leaderboard', async (req, res) => {
-  const games = await Game.find().sort({ totalTime: 1 }).limit(5); // Top 5 fastest times
-  res.status(200).send(games);
-});
+function startGame() {
+  playerName = inputField.value().trim();
+  if (playerName) {
+    gameStarted = true;
+    inputField.hide();
+    startButton.hide();
+    finishButton.show();
+    let canvas = select('canvas');
+    canvas.elt.focus();
+  }
+}
 
-// Start the server
-app.listen(3000, () => console.log('Server running on port 3000'));
+function finishGame() {
+  gameStarted = false;
+  finishButton.hide();
+  startButton.show();
+  inputField.show();
+  inputField.value('');
+}
+
+function keyPressed() {
+  if (gameStarted) {
+    if (key.match(/[a-z]/i) && currentGuess.length < wordLength) {
+      currentGuess += key.toUpperCase();
+    } else if (keyCode === BACKSPACE && currentGuess.length > 0) {
+      currentGuess = currentGuess.slice(0, -1);
+    } else if (keyCode === ENTER && currentGuess.length === wordLength) {
+      checkGuess(currentGuess);
+      currentGuess = '';
+    }
+  }
+}
+
+function checkGuess(guess) {
+  if (guess === targetWord) {
+    console.log("Correct! You guessed the word: " + targetWord);
+    finishGame();
+  } else {
+    console.log("Incorrect guess: " + guess);
+  }
+}
