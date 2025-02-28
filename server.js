@@ -1,68 +1,50 @@
 const express = require('express');
-const http = require('http');
-const SocketIO = require('socket.io');
-
+const mongoose = require('mongoose');
 const app = express();
-const server = http.createServer(app);
-const io = SocketIO(server);
+app.use(express.json()); // Parse JSON requests
 
-app.use(express.static('public')); // Serve static files from the public folder
-
-let players = []; // Store player data: { id, name, row, colors }
-
-io.on('connection', (socket) => {
-  console.log('A player connected:', socket.id);
-
-  // Handle player joining with a name
-  socket.on('join', (name) => {
-    players.push({ id: socket.id, name, row: 1, colors: Array(5).fill('gray') });
-    io.emit('playersUpdate', players); // Broadcast updated player list
-  });
-
-  // Handle player guessing (update row and colors)
-  socket.on('guess', (guess) => {
-    const player = players.find(p => p.id === socket.id);
-    if (player) {
-      player.row = Math.min(player.row + 1, 6); // Move to next row, max 6
-      player.colors = checkGuess(guess, "FLAME"); // Update colors for guess
-      io.emit('playersUpdate', players); // Broadcast updated player list
-    }
-  });
-
-  // Handle player disconnection
-  socket.on('disconnect', () => {
-    players = players.filter(p => p.id !== socket.id);
-    io.emit('playersUpdate', players); // Broadcast updated player list
-    console.log('A player disconnected:', socket.id);
-  });
+// Connect to MongoDB (replace with your URI)
+mongoose.connect('mongodb://localhost:27017/gameDB', { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true 
 });
 
-function checkGuess(guess, target) {
-  let feedback = Array(5).fill('gray');
-  let targetLetters = target.split('');
-  
-  // First pass: Mark correct positions (green)
-  for (let i = 0; i < 5; i++) {
-    if (guess[i] === target[i]) {
-      feedback[i] = 'green';
-      targetLetters[i] = null; // Mark as used
-    }
-  }
-
-  // Second pass: Mark correct letters in wrong positions (yellow)
-  for (let i = 0; i < 5; i++) {
-    if (feedback[i] !== 'green') {
-      let index = targetLetters.indexOf(guess[i]);
-      if (index !== -1) {
-        feedback[i] = 'yellow';
-        targetLetters[index] = null; // Mark as used
-      }
-    }
-  }
-  return feedback;
-}
-
-server.listen(3000, () => {
-  console.log('Server running on http://localhost:3000');
-  console.log('Find your local IP and use it for other devices, e.g., http://192.168.1.100:3000');
+// Define a schema for game data
+const gameSchema = new mongoose.Schema({
+  playerName: String,
+  startTime: Number,
+  endTime: Number,
+  totalTime: Number
 });
+const Game = mongoose.model('Game', gameSchema);
+
+// API to start a game
+app.post('/start-game', async (req, res) => {
+  const { playerName, startTime } = req.body;
+  const game = new Game({ playerName, startTime });
+  await game.save();
+  res.status(201).send(game);
+});
+
+// API to finish a game
+app.post('/finish-game', async (req, res) => {
+  const { playerName, endTime } = req.body;
+  const game = await Game.findOne({ playerName, endTime: null });
+  if (game) {
+    game.endTime = endTime;
+    game.totalTime = (endTime - game.startTime) / 1000; // Convert to seconds
+    await game.save();
+    res.status(200).send(game);
+  } else {
+    res.status(404).send('Game not found');
+  }
+});
+
+// API to get all game records (e.g., for a leaderboard)
+app.get('/leaderboard', async (req, res) => {
+  const games = await Game.find().sort({ totalTime: 1 }).limit(5); // Top 5 fastest times
+  res.status(200).send(games);
+});
+
+// Start the server
+app.listen(3000, () => console.log('Server running on port 3000'));
