@@ -7,12 +7,12 @@ let inputField;
 let startButton;
 let finishButton;
 
-let targetWord = "FLAME"; // The word to guess (5 letters, uppercase)
+let targetWord = "FLAME"; // Define targetWord here as a global variable
 let currentGuess = "";    // Current letters being typed by this player
 let guesses = [];         // Array of past guesses for this player
 let maxGuesses = 6;       // Maximum attempts allowed
 
-// Simulated other players (shared via localStorage)
+// Simulated other players (shared via localStorage, with fallback)
 let otherPlayers = JSON.parse(localStorage.getItem('wordlePlayers')) || [
   { name: "Alice", row: 1, colors: Array(5).fill('gray') }, // Initial state
   { name: "Bob", row: 1, colors: Array(5).fill('gray') }
@@ -42,6 +42,9 @@ function setup() {
   // Load other players from localStorage and listen for changes
   window.addEventListener('storage', updatePlayersFromStorage);
   updatePlayersFromStorage(); // Initial load
+
+  // Focus the canvas initially (optional, but helps with key input)
+  document.getElementById('defaultCanvas').focus();
 }
 
 function draw() {
@@ -184,15 +187,32 @@ function gameOver() {
 }
 
 function updateOtherPlayers() {
-  let thisPlayer = { name: playerName, row: guesses.length + 1, colors: checkGuess(guesses[guesses.length - 1] || Array(5).fill('')) };
-  otherPlayers = otherPlayers.filter(p => p.name !== playerName); // Remove old data for this player
-  otherPlayers.push(thisPlayer); // Add updated data
-  localStorage.setItem('wordlePlayers', JSON.stringify(otherPlayers)); // Save to localStorage
+  // Update this player's progress in localStorage, handling potential storage errors
+  try {
+    let thisPlayer = { name: playerName, row: guesses.length + 1, colors: checkGuess(guesses[guesses.length - 1] || Array(5).fill('')) };
+    otherPlayers = otherPlayers.filter(p => p.name !== playerName); // Remove old data for this player
+    otherPlayers.push(thisPlayer); // Add updated data
+    localStorage.setItem('wordlePlayers', JSON.stringify(otherPlayers)); // Save to localStorage
+  } catch (e) {
+    console.log("Storage access blocked, using local fallback:", e);
+    // Fallback: Use an in-memory array if storage is blocked
+    otherPlayers = otherPlayers.filter(p => p.name !== playerName);
+    otherPlayers.push(thisPlayer);
+  }
 }
 
 function updatePlayersFromStorage() {
-  let storedPlayers = JSON.parse(localStorage.getItem('wordlePlayers')) || [];
-  otherPlayers = storedPlayers.filter(p => p.name !== playerName); // Exclude this player
+  // Load other players from localStorage, with a fallback for errors
+  try {
+    let storedPlayers = JSON.parse(localStorage.getItem('wordlePlayers')) || [];
+    otherPlayers = storedPlayers.filter(p => p.name !== playerName); // Exclude this player
+  } catch (e) {
+    console.log("Cannot access localStorage, using default players:", e);
+    otherPlayers = [
+      { name: "Alice", row: 1, colors: Array(5).fill('gray') },
+      { name: "Bob", row: 1, colors: Array(5).fill('gray') }
+    ];
+  }
 }
 
 function startGame() {
