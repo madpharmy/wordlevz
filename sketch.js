@@ -1,12 +1,12 @@
 let inputField, startButton, finishButton;
-let gameStarted = false;
 let playerName = '';
+let gameStarted = false;
 let startTime, totalTime;
 
 function setup() {
   createCanvas(400, 400);
   inputField = createInput('');
-  inputField.position(165, 180);
+  inputField.position(150, 180);
   startButton = createButton('Start Game');
   startButton.position(165, 220);
   startButton.mousePressed(startGame);
@@ -17,38 +17,44 @@ function setup() {
 }
 
 function draw() {
-  background(220);
-  fill(0);
-  textAlign(CENTER, CENTER);
-  if (!gameStarted && isNaN(totalTime)) {
-    text('Click "Start Game"', width / 2, height / 2 - 50);
-  } else if (gameStarted) {
+  background(220); // Light gray
+  textAlign(CENTER);
+  if (!gameStarted) {
+    text("Enter your name and click 'Start Game'", width / 2, height / 2 - 50);
+  } else if (totalTime === 0) {
     text(`Playing as ${playerName}`, width / 2, height / 2 - 50);
-    text("Click 'Finish Game' when done", width / 2, height / 2 + 20);
+    text("Click 'Finish Game' when done", width / 2, height / 2 - 30);
   } else {
-    text(`${playerName} finished in ${totalTime} seconds`, width / 2, height / 2 - 50);
-    text('Enter a new name to play again', width / 2, height / 2 + 20);
+    text(`Finished! Time: ${(totalTime / 1000).toFixed(2)} sec`, width / 2, height / 2);
   }
 }
 
 function startGame() {
-  let name = inputField.value();
-  if (name) {
-    playerName = name;
-    inputField.value('');
-    startButton.hide();
-    finishButton.show();
-    totalTime = 0;
-    startTime = millis();
-    gameStarted = true;
+  if (inputField) {
+    let name = inputField.value();
+    if (name) {
+      playerName = name;
+      inputField.value('');
+      inputField.hide();
+      startButton.hide();
+      finishButton.show();
+      startTime = millis();
+      gameStarted = true;
+    }
   }
 }
 
 function finishGame() {
-  let endTime = millis();
-  totalTime = (endTime - startTime) / 1000; // Convert to seconds
-  gameStarted = false;
+  totalTime = millis() - startTime;
   finishButton.hide();
-  startButton.show();
   inputField.show();
+  startButton.show();
+  gameStarted = false;
+}
+
+function keyPressed() {
+  console.log("Key pressed:", key, "KeyCode:", keyCode);
+  if (keyCode === ENTER && !gameStarted) {
+    startGame();
+  }
 }
