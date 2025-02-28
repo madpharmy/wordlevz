@@ -1,59 +1,71 @@
-let startButton, finishButton, inputField;
-let gameStarted = false;
-let playerName = '';
-let startTime, totalTime;
+let playerName, startTime, totalTime = 0, gameStarted = false;
 
 function setup() {
-  createCanvas(400, 400);
-  
-  // Initialize DOM elements
-  inputField = createInput('');
-  inputField.position(165, 180);
-  
-  startButton = createButton('Start Game');
-  startButton.position(165, 220);
+  // Existing setup code (e.g., createCanvas, buttons, inputField)
   startButton.mousePressed(startGame);
-  
-  finishButton = createButton('Finish Game');
-  finishButton.position(165, 220);
   finishButton.mousePressed(finishGame);
-  finishButton.hide(); // Safe now
-}
-
-function draw() {
-  background(220); // Gray background
-  textAlign(CENTER);
-  
-  if (!gameStarted && !startTime) {
-    text("Enter your name and click 'Start Game'", width / 2, height / 2 - 50);
-  } else if (gameStarted) {
-    text(`Playing as ${playerName}`, width / 2, height / 2 - 50);
-    text("Click 'Finish Game' when done", width / 2, height / 2);
-  } else if (totalTime) {
-    text(`${playerName}, you finished in ${totalTime.toFixed(2)} seconds`, width / 2, height / 2 - 50);
-    text("Enter a new name to play again", width / 2, height / 2);
-  }
 }
 
 function startGame() {
-  playerName = inputField.value() || '';
-  inputField.value('');
-  inputField.hide();
-  startButton.hide();
-  finishButton.show();
-  totalTime = 0;
-  startTime = millis();
-  gameStarted = true;
+  let name = inputField.value().trim();
+  if (name) {
+    fetch('http://localhost:3000/start-game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerName: name, startTime: Date.now() })
+    })
+    .then(response => response.json())
+    .then(data => {
+      playerName = data.playerName;
+      startTime = data.startTime;
+      gameStarted = true;
+      startButton.hide();
+      finishButton.show();
+    })
+    .catch(error => console.error('Error:', error));
+  }
 }
 
 function finishGame() {
   if (gameStarted) {
-    let endTime = millis();
-    totalTime = (endTime - startTime) / 1000;
-    finishButton.hide();
-    startButton.show();
-    inputField.show();
-    gameStarted = false;
-    startTime = null;
+    let endTime = Date.now();
+    fetch('http://localhost:3000/finish-game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerName, endTime })
+    })
+    .then(response => response.json())
+    .then(data => {
+      totalTime = data.totalTime;
+      gameStarted = false;
+      finishButton.hide();
+      startButton.show();
+      inputField.show();
+      fetchLeaderboard(); // Optional: Update leaderboard
+    })
+    .catch(error => console.error('Error:', error));
+  }
+}
+
+function fetchLeaderboard() {
+  fetch('http://localhost:3000/leaderboard')
+    .then(response => response.json())
+    .then(data => {
+      console.log('Leaderboard:', data); // Display or render leaderboard
+      // Add code to show leaderboard in your UI
+    });
+}
+
+function draw() {
+  background(220);
+  textAlign(CENTER);
+  fill(0);
+  if (!gameStarted && totalTime === 0) {
+    text("Click 'Start Game'", width / 2, height / 2 - 50);
+  } else if (gameStarted) {
+    text(`Playing as ${playerName}`, width / 2, height / 2 - 50);
+  } else if (totalTime > 0) {
+    text(`Finished in ${totalTime} seconds`, width / 2, height / 2 - 30);
+    text("Enter a new name to play again", width / 2, height / 2 + 30);
   }
 }
