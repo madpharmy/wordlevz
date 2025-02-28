@@ -1,83 +1,113 @@
-document.addEventListener('DOMContentLoaded', () => {
-  // DOM elements
-  const startScreen = document.getElementById('startScreen');
-  const gameScreen = document.getElementById('gameScreen');
-  const nameInput = document.getElementById('nameInput');
-  const startButton = document.getElementById('startButton');
-  const tryButton = document.getElementById('tryButton');
-  const finishButton = document.getElementById('finishButton');
+// Global variables
+let playerName = '';
+let gameStarted = false;
+let startTime;
+let totalTime = 0;
+let inputField;
+let startButton;
+let finishButton;
+const targetWord = "FLAME"; // Example target word (change as needed)
+let guesses = [];
+let tryCount = 0;
+const maxTries = 6;
 
-  // Load and initialize game state
-  if (localStorage.getItem('gameStarted') === 'true') {
-    // Resume ongoing game
-    startScreen.style.display = 'none';
-    gameScreen.style.display = 'block';
-    nameInput.value = localStorage.getItem('playerName') || '';
+// Setup function: Initialize the game
+function setup() {
+  createCanvas(400, 600); // Create a canvas for the game
+  textAlign(CENTER, CENTER);
+  textSize(20);
+
+  // Create input field for player name and guesses
+  inputField = createInput('');
+  inputField.position(150, 180);
+  inputField.size(100, 20);
+
+  // Create start button
+  startButton = createButton('Start Game');
+  startButton.position(165, 220);
+  startButton.mousePressed(startGame);
+
+  // Create finish button (hidden initially)
+  finishButton = createButton('Finish Game');
+  finishButton.position(165, 250);
+  finishButton.hide();
+  finishButton.mousePressed(finishGame);
+}
+
+// Draw function: Update the game display
+function draw() {
+  background(220); // Light gray background
+  fill(0); // Black text
+
+  if (!gameStarted) {
+    text("Enter your name and click 'Start Game'", width / 2, height / 2 - 50);
   } else {
-    // Show start screen
-    startScreen.style.display = 'block';
-    gameScreen.style.display = 'none';
-  }
-  updateLeaderBoard();
-
-  // Start game event
-  startButton.addEventListener('click', () => {
-    const name = nameInput.value.trim();
-    if (name) {
-      // Save initial game state
-      localStorage.setItem('playerName', name);
-      localStorage.setItem('startTime', Date.now());
-      localStorage.setItem('tries', 0);
-      localStorage.setItem('gameStarted', 'true');
-      // Switch to game screen
-      startScreen.style.display = 'none';
-      gameScreen.style.display = 'block';
-    } else {
-      alert('Please enter a name!');
+    text(`Playing as ${playerName}`, width / 2, 50);
+    // Display guesses and feedback
+    for (let i = 0; i < guesses.length; i++) {
+      let feedback = getFeedback(guesses[i]);
+      text(`${guesses[i]} - ${feedback}`, width / 2, 100 + i * 30);
     }
-  });
-
-  // Increment tries event
-  tryButton.addEventListener('click', () => {
-    let tries = parseInt(localStorage.getItem('tries') || '0');
-    tries++;
-    localStorage.setItem('tries', tries);
-  });
-
-  // Finish game event
-  finishButton.addEventListener('click', () => {
-    const endTime = Date.now();
-    const startTime = parseInt(localStorage.getItem('startTime'));
-    const time = (endTime - startTime) / 1000; // Time in seconds
-    const tries = parseInt(localStorage.getItem('tries'));
-    const name = localStorage.getItem('playerName');
-
-    // Update leaderboard
-    let leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
-    leaderboard.push({ name, time, tries });
-    leaderboard.sort((a, b) => a.time - b.time); // Sort by time ascending
-    localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
-
-    // Reset game state
-    localStorage.setItem('gameStarted', 'false');
-    startScreen.style.display = 'block';
-    gameScreen.style.display = 'none';
-    updateLeaderBoard();
-  });
-
-  // Function to update leaderboard display
-  function updateLeaderBoard() {
-    const leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
-    const table = document.querySelector('#leaderboard table');
-    table.innerHTML = '<tr><th>Name</th><th>Time (s)</th><th>Tries</th></tr>';
-    leaderboard.forEach(entry => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${entry.name}</td>
-        <td>${entry.time.toFixed(2)}</td>
-        <td>${entry.tries}</td>
-      `;
-      table.appendChild(row);
-    });
+    if (tryCount < maxTries) {
+      text("Enter a 5-letter word (press Enter)", width / 2, height - 50);
+    } else {
+      text(`Out of tries! The word was ${targetWord}`, width / 2, height - 50);
+      finishButton.show();
+    }
   }
-});
+}
+
+// Start the game
+function startGame() {
+  playerName = inputField.value().trim();
+  if (playerName.length > 0) { // Ensure a name is entered
+    gameStarted = true;
+    guesses = []; // Reset guesses
+    tryCount = 0; // Reset try count
+    startTime = millis(); // Start timing
+    inputField.value(''); // Clear input
+    startButton.hide(); // Hide start button
+    finishButton.hide(); // Ensure finish button is hidden
+  }
+}
+
+// Finish the game
+function finishGame() {
+  totalTime = (millis() - startTime) / 1000; // Calculate time in seconds
+  gameStarted = false;
+  alert(`Game over, ${playerName}! You took ${totalTime.toFixed(2)} seconds.`);
+  startButton.show(); // Show start button again
+  inputField.show(); // Show input field
+}
+
+// Handle guesses when Enter is pressed
+function keyPressed() {
+  if (gameStarted && keyCode === ENTER && tryCount < maxTries) {
+    let guess = inputField.value().toUpperCase().trim();
+    if (guess.length === 5) { // Ensure guess is 5 letters
+      guesses.push(guess);
+      tryCount++;
+      inputField.value(''); // Clear input
+      if (guess === targetWord) { // Check if guess is correct
+        finishButton.show();
+      }
+    } else {
+      alert("Please enter a 5-letter word!");
+    }
+  }
+}
+
+// Provide feedback on guesses
+function getFeedback(guess) {
+  let feedback = "";
+  for (let i = 0; i < 5; i++) {
+    if (guess[i] === targetWord[i]) {
+      feedback += "🟩"; // Correct letter, correct position
+    } else if (targetWord.includes(guess[i])) {
+      feedback += "🟨"; // Correct letter, wrong position
+    } else {
+      feedback += "⬜"; // Incorrect letter
+    }
+  }
+  return feedback;
+}
