@@ -1,4 +1,7 @@
-let startButton, finishButton, inputField, playerName, totalTime, startTime, gameStarted = false;
+let inputField, startButton, finishButton;
+let gameStarted = false;
+let playerName = '';
+let startTime, totalTime;
 
 function setup() {
   createCanvas(400, 400);
@@ -10,23 +13,29 @@ function setup() {
   finishButton = createButton('Finish Game');
   finishButton.position(165, 220);
   finishButton.hide();
+  finishButton.mousePressed(finishGame);
 }
 
 function draw() {
   background(220);
   fill(0);
-  textAlign(CENTER);
-  if (!gameStarted) {
-    text("Enter your name and click 'Start Game'", width/2, height/2 - 50);
+  textAlign(CENTER, CENTER);
+  if (!gameStarted && isNaN(totalTime)) {
+    text('Click "Start Game"', width / 2, height / 2 - 50);
+  } else if (gameStarted) {
+    text(`Playing as ${playerName}`, width / 2, height / 2 - 50);
+    text("Click 'Finish Game' when done", width / 2, height / 2 + 20);
   } else {
-    text("Playing as " + playerName, width/2, height/2 - 50);
+    text(`${playerName} finished in ${totalTime} seconds`, width / 2, height / 2 - 50);
+    text('Enter a new name to play again', width / 2, height / 2 + 20);
   }
 }
 
 function startGame() {
-  playerName = inputField.value();
-  if (playerName !== '') {
-    inputField.hide();
+  let name = inputField.value();
+  if (name) {
+    playerName = name;
+    inputField.value('');
     startButton.hide();
     finishButton.show();
     totalTime = 0;
@@ -36,11 +45,10 @@ function startGame() {
 }
 
 function finishGame() {
-  if (gameStarted) {
-    totalTime = (millis() - startTime) / 1000;
-    gameStarted = false;
-    finishButton.hide();
-    startButton.show();
-    inputField.show();
-  }
+  let endTime = millis();
+  totalTime = (endTime - startTime) / 1000; // Convert to seconds
+  gameStarted = false;
+  finishButton.hide();
+  startButton.show();
+  inputField.show();
 }
