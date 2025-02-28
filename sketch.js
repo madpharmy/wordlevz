@@ -134,13 +134,18 @@ function drawPlayersPanel() {
 }
 
 function keyPressed() {
+  console.log("Key pressed:", key, "KeyCode:", keyCode); // Debug log
   if (gameStarted && !gameOver()) {
-    console.log("Key pressed:", key, "KeyCode:", keyCode); // Debug log
+    // Handle typing letters (A-Z)
     if ((keyCode >= 65 && keyCode <= 90) && currentGuess.length < 5) { // A-Z keys
       currentGuess += String.fromCharCode(keyCode); // Add uppercase letter
-    } else if (keyCode === BACKSPACE && currentGuess.length > 0) {
+    }
+    // Handle Backspace to delete the last letter
+    else if (keyCode === BACKSPACE && currentGuess.length > 0) {
       currentGuess = currentGuess.slice(0, -1); // Remove the last letter
-    } else if (keyCode === ENTER && currentGuess.length === 5) {
+    }
+    // Handle Enter to submit a guess
+    else if (keyCode === ENTER && currentGuess.length === 5) {
       guesses.push(currentGuess); // Submit guess
       updateOtherPlayers(); // Update other players' progress
       if (currentGuess === targetWord || guesses.length === maxGuesses) {
